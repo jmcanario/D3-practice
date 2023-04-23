@@ -151,6 +151,7 @@ const formatting = dataset.forEach(d => {
   // Add the bubble chart to the #chart container
   d3.select('#chart').append(() => bubbleChart);
     console.log(formatting)
+    
 
 
 
