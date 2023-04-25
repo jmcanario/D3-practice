@@ -1,5 +1,4 @@
 body{
-    // color: black;
     background-color: beige;
     font-weight: bold;
 }
@@ -7,12 +6,24 @@ body{
 span:nth-child(2) {
     margin-left: 20px;
   }
+  
+  #chart-container {
+    position: relative;
+}
+
 #sales-info {
     color: #666;
     font-size: 28px;
     position: absolute;
-    top: 60px;
-    left: 40px;
+    top: 4vh;
+    left: calc((100vw - 1200px)/2);
+    
+  }
+#chart {
+    color: #666;
+    text-align: center;
+    position: relative;
+    
   }
   
   svg {
