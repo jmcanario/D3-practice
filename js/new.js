@@ -14,6 +14,22 @@ function createBubbleChart(consoles) {
     const companies = consoles.map(function(console) { return console.Company; });
     const sales = consoles.map(function(console) { return +console.UnitsSold; });
 
+// testing
+    const counts = companies.reduce(function(obj, company) {
+        obj[company] = (obj[company] || 0) + 1;
+        return obj;
+      }, {});
+      
+      console.log(counts);
+
+      const uniqueCompanies = new Set(companies);
+const countUniqueCompanies = uniqueCompanies.size;
+console.log(countUniqueCompanies);
+
+
+    
+    
+
     // Creating useful information to build bubbles in variables
     const meanSales = d3.mean(sales) // Make the average in the sales column
     const salesExtent = d3.extent(sales) // Compute minimum and maximum in the sales column
@@ -60,25 +76,68 @@ createCircles();
       .enter()
         .append("circle")
         .attr("r", function(d) { return circleRadiusScale(d.UnitsSold); })
-        .on("mouseover", function(d) {
-          updateConsoleInfo(d);
+        .on("mouseover", function() {
+          updateConsoleInfo(this.__data__);
         })
         .on("mouseout", function(d) {
           updateConsoleInfo();
         });
-   
-    function updateConsoleInfo(cons) {
-        var info = "";
-        console.log(cons)
 
-      if (cons) {
-        info = [cons.ConsoleName, formatSales(cons.UnitsSold)].join(": ");
+
+
+   // showing information of the company and units solds in the html
+    function updateConsoleInfo(d) {
+        var info = "";
+    
+
+      if (d) {
+        info = [d.ConsoleName, formatSales(d.UnitsSold)].join(": ");
       }
       d3.select("#sales-info").html(info);
   
     }
+    // Create labels for each bubble to be added later on
+    labels = svg.selectAll(".label") 
+    .data(consoles)
+        .enter()
+            .append("text")
+            .attr("class", "label")
+            .text(function(d) { return d.ConsoleName; })
+            .attr("text-anchor", "middle")
+            
+            // Adapt the text based in the bubble size     
+
+            .style("font-size", function(d) {
+                let fontSize = circleRadiusScale(d.UnitsSold) / 2;
+                const circleDiameter = circleRadiusScale(d.UnitsSold) * 2;
+                let textWidth = getTextWidth(d.ConsoleName, fontSize);
+            
+                while (textWidth > circleDiameter) {
+                  fontSize = fontSize * 0.9;
+                  textWidth = getTextWidth(d.ConsoleName, fontSize);
+                }
+                return fontSize + "px";
+  });
+
+
+            function getTextWidth(text, fontSize) {
+                const canvas = document.createElement("canvas");
+                const context = canvas.getContext("2d");
+                context.font = fontSize + "px sans-serif";
+                const metrics = context.measureText(text);
+                return metrics.width;
+              }
+              
+
+            console.log(labels.x)
+// adding color to bubbles
+    const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
+        .domain(companies);
+circles.attr("fill", function(d) { return colorScale(d.Company); });
   }
 
+
+ 
   
 //---------------
 createForces();
@@ -101,7 +160,7 @@ function createForces() {
   }
     
 // interesting!!
-//   var circles= svg.selectAll("circle")
+
   function createForceSimulation() {
     forceSimulation = d3.forceSimulation()
       .force("x", forces.x)
@@ -112,6 +171,9 @@ function createForces() {
        circles
           .attr("cx", function(d) { return d.x; })
           .attr("cy", function(d) { return d.y; });
+          labels // Add this block to update the labels' positions
+        .attr("x", function(d) { return d.x; })
+        .attr("y", function(d) { return d.y; });
       });
       
       function forceCollide(d) { return circleRadiusScale(d.UnitsSold); }
