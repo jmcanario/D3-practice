@@ -1,4 +1,25 @@
 body {
   background-color: beige;
   font-weight: bold;
+}
+
+span:nth-child(2) {
+  margin-left: 20px;
+}
+
+#sales-info {
+  color: #666;
+  font-size: 28px;
+  position: absolute;
+  top: 60px;
+  left: 40px;
+}
+
+svg {
+  border: 1px solid #ddd;
+}
+
+circle {
+  stroke: white;
+  stroke-width: 1.5;
 }/*# sourceMappingURL=style.css.map */

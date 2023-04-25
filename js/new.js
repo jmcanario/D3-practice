@@ -17,9 +17,7 @@ function createBubbleChart(consoles) {
     // Creating useful information to build bubbles in variables
     const meanSales = d3.mean(sales) // Make the average in the sales column
     const salesExtent = d3.extent(sales) // Compute minimum and maximum in the sales column
-   
-   
- 
+
      // Chart dimentions and added to the container to display
 let dimentions ={
     width: 800,
@@ -51,22 +49,72 @@ const circleRadiusScale = d3.scaleSqrt() // appliyin sizes to radious
 
 
 
-
-
 createCircles();
+
 
 
   function createCircles() {
     var formatSales = d3.format(",");
-    const circles = svg.selectAll("circle")
+     circles = svg.selectAll("circle")
       .data(consoles)
       .enter()
         .append("circle")
-        .attr("r", function(d) { return circleRadiusScale(d.UnitsSold); })     
+        .attr("r", function(d) { return circleRadiusScale(d.UnitsSold); })
+        .on("mouseover", function(d) {
+          updateConsoleInfo(d);
+        })
+        .on("mouseout", function(d) {
+          updateConsoleInfo();
+        });
+   
+    function updateConsoleInfo(cons) {
+        var info = "";
+        console.log(cons)
 
+      if (cons) {
+        info = [cons.ConsoleName, formatSales(cons.UnitsSold)].join(": ");
+      }
+      d3.select("#sales-info").html(info);
+  
+    }
   }
 
+  
+//---------------
+createForces();
+createForceSimulation();
 
-console.log(circles)
+
+function createForces() {
+    var forceStrength = 0.05;
+
+     forces = createCombineForces();
+      
+    function createCombineForces() {
+        return {
+          x: d3.forceX(dimentions.width / 2).strength(forceStrength),
+          y: d3.forceY(dimentions.height / 2).strength(forceStrength)
+        };
+      }
+      
+      
+  }
+    
+// interesting!!
+//   var circles= svg.selectAll("circle")
+  function createForceSimulation() {
+    forceSimulation = d3.forceSimulation()
+      .force("x", forces.x)
+      .force("y", forces.y)
+      .force("collide", d3.forceCollide(forceCollide));
+    forceSimulation.nodes(consoles)
+      .on("tick", function() {
+       circles
+          .attr("cx", function(d) { return d.x; })
+          .attr("cy", function(d) { return d.y; });
+      });
+      
+      function forceCollide(d) { return circleRadiusScale(d.UnitsSold); }
+  }    
     
 }
