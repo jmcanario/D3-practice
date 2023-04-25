@@ -1,177 +1,198 @@
-// import BubbleChart from './ref/d3-ref.js'
+// Load data in D3
+d3.csv("./../data/data.csv")
+    .then(function(data) {
+        createBubbleChart(data);
+    });
 
-console.log('hello')
+// Create a bubble chart with the given data
+function createBubbleChart(consoles) {
+    // Extract data columns into separate arrays
+    const consoleNames = consoles.map(function(console) { return console.ConsoleName; });
+    const companies = consoles.map(function(console) { return console.Company; });
+    const sales = consoles.map(function(console) { return +console.UnitsSold; });
 
-async function draw() {
+    // Count companies and find unique companies
+    const counts = companies.reduce(function(obj, company) {
+        obj[company] = (obj[company] || 0) + 1;
+        return obj;
+    }, {});
 
+    const uniqueCompanies = new Set(companies);
+    const countUniqueCompanies = uniqueCompanies.size;
 
-    // Data 
-const dataset = await d3.csv('./../data/data.csv')
-console.log(dataset)
+    // Calculate sales and sales extent    
+    const salesExtent = d3.extent(sales);
 
-    // Chart dimentions calculation
-let dimentions ={
-    width: 800,
-    height: 800,
-    margin:{
-        top: 50,
-        left: 50,
-        right: 50,
-        bottom: 50
-    } 
+    // Chart dimensions
+    let dimensions = {
+        width: 1200,
+        height: 700,
+        margin: {
+            top: 50,
+            left: 50,
+            right: 50,
+            bottom: 50
+        }
+    };
+
+    // Create main SVG
+    const svg = d3.select('#chart')
+        .append('svg')
+        .attr('width', dimensions.width)
+        .attr('height', dimensions.height);
+
+    // Create container for the chart
+    const container = svg.append('g')
+        .attr('transform', `translate(${dimensions.margin.left}, ${dimensions.margin.right})`);
+
+    // Circle sizes and scales
+    const circleSize = { min: 10, max: 80 };
+    const circleRadiusScale = d3.scaleSqrt()
+        .domain(salesExtent)
+        .range([circleSize.min, circleSize.max]);
+
+    // Create circles and labels
+    createCircles();
+
+    // Create legend
+    createLegend();
+
+    // Create forces and force simulation
+    createForces();
+    createForceSimulation();
+
+    // Function to create circles and labels
+    function createCircles() {
+        var formatSales = d3.format(",");
+
+        // Create circles
+        circles = svg.selectAll("circle")
+            .data(consoles)
+            .enter()
+            .append("circle")
+            .attr("r", function(d) { return circleRadiusScale(d.UnitsSold); })
+            .on("mouseover", function() {
+                updateConsoleInfo(this.__data__);
+            })
+            .on("mouseout", function(d) {
+                updateConsoleInfo();
+            });
+
+        // Update console info on hover
+        function updateConsoleInfo(d) {
+            var info = "";
+
+            if (d) {
+                info = [d.ConsoleName, formatSales(d.UnitsSold)].join(": ") + ' mill';
+            }
+            d3.select("#sales-info").html(info);
+        }
+
+               // Create labels for each bubble
+               labels = svg.selectAll(".label")
+               .data(consoles)
+               .enter()
+               .append("text")
+               .attr("class", "label")
+               .text(function(d) { return d.ConsoleName; })
+               .attr("text-anchor", "middle")
+               .style("font-size", function(d) {
+                   let fontSize = circleRadiusScale(d.UnitsSold) / 2;
+                   const circleDiameter = circleRadiusScale(d.UnitsSold) * 2;
+                   let textWidth = getTextWidth(d.ConsoleName, fontSize);
+   
+                   while (textWidth > circleDiameter) {
+                       fontSize = fontSize * 0.9;
+                       textWidth = getTextWidth(d.ConsoleName, fontSize);
+                   }
+                   return fontSize + "px";
+               });
+   
+           // Function to calculate text width based on font size
+           function getTextWidth(text, fontSize) {
+               const canvas = document.createElement("canvas");
+               const context = canvas.getContext("2d");
+               context.font = fontSize + "px sans-serif";
+               const metrics = context.measureText(text);
+               return metrics.width;
+           }
+   
+           // Apply color to bubbles based on company
+           const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
+               .domain(companies);
+           circles.attr("fill", function(d) { return colorScale(d.Company); });
+       }
+   
+       // Function to create legend
+       function createLegend() {
+           const legendSpacing = 25; // Spacing between legend items
+           const legendHeight = uniqueCompanies.size * legendSpacing;
+   
+           // Create legend container
+           const legend = svg.append('g')
+               .attr('class', 'legend')
+               .attr('transform', `translate(${dimensions.width - 220}, ${dimensions.height - dimensions.margin.bottom - legendHeight})`);
+   
+           // Create legend data
+           const legendData = Array.from(uniqueCompanies).map(company => ({ Company: company }));
+   
+           // Create a new color scale for the legend to avoid conflicts
+           const legendColorScale = d3.scaleOrdinal(d3.schemeCategory10)
+               .domain(legendData.map(d => d.Company));
+   
+           // Create legend items
+           const legendItem = legend.selectAll('.legend-item')
+               .data(legendData)
+               .enter()
+               .append('g')
+               .attr('class', 'legend-item')
+               .attr('transform', (d, i) => `translate(0, ${i * 25})`);
+   
+           // Add colored rectangles to legend items
+           legendItem.append('rect')
+               .attr('width', 20)
+               .attr('height', 20)
+               .attr('fill', d => legendColorScale(d.Company));
+   
+           // Add company names to legend items
+           legendItem.append('text')
+               .attr('x', 25)
+               .attr('y', 15)
+               .text(d => d.Company);
+       }
+   
+       // Function to create forces
+       function createForces() {
+           var forceStrength = 0.05;
+   
+           forces = createCombineForces();
+   
+           function createCombineForces() {
+               return {
+                   x: d3.forceX(dimensions.width / 2).strength(forceStrength),
+                   y: d3.forceY(dimensions.height / 2).strength(forceStrength)
+               };
+           }
+       }
+    // Function to create force simulation
+    function createForceSimulation() {
+        forceSimulation = d3.forceSimulation()
+            .force("x", forces.x)
+            .force("y", forces.y)
+            .force("collide", d3.forceCollide(forceCollide));
+
+        forceSimulation.nodes(consoles)
+            .on("tick", function() {
+                circles
+                    .attr("cx", function(d) { return d.x; })
+                    .attr("cy", function(d) { return d.y; });
+                labels
+                    .attr("x", function(d) { return d.x; })
+                    .attr("y", function(d) { return d.y; });
+            });
+
+        function forceCollide(d) {
+            return circleRadiusScale(d.UnitsSold);
+        }
+    }
 }
-
-    // Draw Chart
-const svg = d3.select('#chart')
-    .append('svg')
-    .attr('width', dimentions.width)
-    .attr('height', dimentions.height)
-
-const container = svg.append('g')
-    .attr('transform', `translate(${dimentions.margin.left}, ${dimentions.margin.right})`)
-
-    // container.append('circle')
-    //     .attr('r', 30)
-
-// Parse the numeric fields
-const formatting = dataset.forEach(d => {
-    d['Released Year'] = +d['Released Year'];
-    d['Discontinuation Year'] = +d['Discontinuation Year'];
-    d['Units sold (million)'] = +d['Units sold (million)'];
-  });
-
-  // Define the options for the BubbleChart function
-  const options = {
-    label: d => d['Console Name'],
-    value: d => d['Units sold (million)'],
-    group: d => d['Company'],
-    title: d => `${d['Console Name']} (${d['Company']}) - Units sold: ${d['Units sold (million)']} million`,
-    width: 800,
-    height: 800,
-  };
-
-  // Create the bubble chart
-  const bubbleChart = BubbleChart(dataset, options);
-
-  // Add the bubble chart to the #chart container
-  d3.select('#chart').append(() => bubbleChart);
-    console.log(BubbleChart)
-    
-
-
-
-
-        // from d3
-
-        // Copyright 2021 Observable, Inc.
-// Released under the ISC license.
-// https://observablehq.com/@d3/bubble-chart
-
-// function BubbleChart(dataset, {
-//     name = ([x]) => x, // alias for label
-//     label = name, // given d in data, returns text to display on the bubble
-//     value = ([, y]) => y, // given d in data, returns a quantitative size
-//     group, // given d in data, returns a categorical value for color
-//     title, // given d in data, returns text to show on hover
-//     link, // given a node d, its link (if any)
-//     linkTarget = "_blank", // the target attribute for links, if any
-//     width = 640, // outer width, in pixels
-//     height = width, // outer height, in pixels
-//     padding = 3, // padding between circles
-//     margin = 1, // default margins
-//     marginTop = margin, // top margin, in pixels
-//     marginRight = margin, // right margin, in pixels
-//     marginBottom = margin, // bottom margin, in pixels
-//     marginLeft = margin, // left margin, in pixels
-//     groups, // array of group names (the domain of the color scale)
-//     colors = d3.schemeTableau10, // an array of colors (for groups)
-//     fill = "#ccc", // a static fill color, if no group channel is specified
-//     fillOpacity = 0.7, // the fill opacity of the bubbles
-//     stroke, // a static stroke around the bubbles
-//     strokeWidth, // the stroke width around the bubbles, if any
-//     strokeOpacity, // the stroke opacity around the bubbles, if any
-//   } = {}) {
-//     // Compute the values.
-//     const D = d3.map(data, d => d);
-//     const V = d3.map(data, value);
-//     const G = group == null ? null : d3.map(data, group);
-//     const I = d3.range(V.length).filter(i => V[i] > 0);
-  
-//     // Unique the groups.
-//     if (G && groups === undefined) groups = I.map(i => G[i]);
-//     groups = G && new d3.InternSet(groups);
-  
-//     // Construct scales.
-//     const color = G && d3.scaleOrdinal(groups, colors);
-  
-//     // Compute labels and titles.
-//     const L = label == null ? null : d3.map(data, label);
-//     const T = title === undefined ? L : title == null ? null : d3.map(data, title);
-  
-//     // Compute layout: create a 1-deep hierarchy, and pack it.
-//     const root = d3.pack()
-//         .size([width - marginLeft - marginRight, height - marginTop - marginBottom])
-//         .padding(padding)
-//       (d3.hierarchy({children: I})
-//         .sum(i => V[i]));
-  
-//     const svg = d3.create("svg")
-//         .attr("width", width)
-//         .attr("height", height)
-//         .attr("viewBox", [-marginLeft, -marginTop, width, height])
-//         .attr("style", "max-width: 100%; height: auto; height: intrinsic;")
-//         .attr("fill", "currentColor")
-//         .attr("font-size", 10)
-//         .attr("font-family", "sans-serif")
-//         .attr("text-anchor", "middle");
-  
-//     const leaf = svg.selectAll("a")
-//       .data(root.leaves())
-//       .join("a")
-//         .attr("xlink:href", link == null ? null : (d, i) => link(D[d.data], i, data))
-//         .attr("target", link == null ? null : linkTarget)
-//         .attr("transform", d => `translate(${d.x},${d.y})`);
-  
-//     leaf.append("circle")
-//         .attr("stroke", stroke)
-//         .attr("stroke-width", strokeWidth)
-//         .attr("stroke-opacity", strokeOpacity)
-//         .attr("fill", G ? d => color(G[d.data]) : fill == null ? "none" : fill)
-//         .attr("fill-opacity", fillOpacity)
-//         .attr("r", d => d.r);
-  
-//     if (T) leaf.append("title")
-//         .text(d => T[d.data]);
-  
-//     if (L) {
-//       // A unique identifier for clip paths (to avoid conflicts).
-//       const uid = `O-${Math.random().toString(16).slice(2)}`;
-  
-//       leaf.append("clipPath")
-//           .attr("id", d => `${uid}-clip-${d.data}`)
-//         .append("circle")
-//           .attr("r", d => d.r);
-  
-//       leaf.append("text")
-//           .attr("clip-path", d => `url(${new URL(`#${uid}-clip-${d.data}`, location)})`)
-//         .selectAll("tspan")
-//         .data(d => `${L[d.data]}`.split(/\n/g))
-//         .join("tspan")
-//           .attr("x", 0)
-//           .attr("y", (d, i, D) => `${i - D.length / 2 + 0.85}em`)
-//           .attr("fill-opacity", (d, i, D) => i === D.length - 1 ? 0.7 : null)
-//           .text(d => d);
-//     }
-  
-//     return Object.assign(svg.node(), {scales: {color}});
-//   }
-
-//   console.log(BubbleChart)
-}
-// practice
-
-
-
-
-
-draw()

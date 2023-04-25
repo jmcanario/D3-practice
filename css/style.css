@@ -7,6 +7,10 @@ span:nth-child(2) {
   margin-left: 20px;
 }
 
+h1 {
+  text-align: center;
+}
+
 #chart-container {
   position: relative;
 }
@@ -15,7 +19,7 @@ span:nth-child(2) {
   color: #666;
   font-size: 28px;
   position: absolute;
-  top: 4vh;
+  top: 10vh;
   left: calc((100vw - 1200px) / 2);
 }
 
